@@ -1,0 +1,309 @@
+from ns import ns #The NS package from python
+
+
+
+import sys
+
+#The system module in python, in this case, it will sever
+#for the cmd section
+
+from ctypes import c_bool, c_int
+#The certain types from ctypes moduel in python, which
+#is providing c++ compatible data types, in this case.
+#int and bool datatypes
+
+nCsma = c_int(3)
+#The number of nodes in CSMA subnet, c_int is the integer
+#from ctype
+verbose = c_bool(True)
+#The variable to enable/disable log component, c_boolean is the integer
+#from ctype
+nWifi = c_int(3)
+#The number of nodes in wifi subnet, c_int is the integer
+#from ctype
+tracing = c_bool(True)
+#The variable to enable/disable tracing, c_int is the integer
+#from ctype
+
+
+cmd = ns.CommandLine(__file__)
+#A command line parser(cmd) using comandLine class from ns-3
+#__file__ is a variable represents name of current scripts in python
+#CommandLine is an object with scripts'name
+cmd.AddValue("nCsma", "Number of extra CSMA nodes/devices", nCsma)
+#A commandline argument to the parser,it allows script to accept
+#parameter 'nCsma' with a description following, the value
+#of this paramter is provided during execution as '3'
+cmd.AddValue("nWifi", "Number of wifi STA devices", nWifi)
+#A commandline argument to the parser,it allows script to accept
+#parameter 'nwifi' with a description following, the value
+#of this paramter is provided during execution as '3'
+cmd.AddValue("verbose", "Tell echo applications to log if true", verbose)
+#A commandline argument to the parser,it allows script to accept
+#parameter 'verbose' with a description following, the value
+#of this paramter is provided during execution as 'true'
+cmd.AddValue("tracing", "Enable pcap tracing", tracing)
+#A commandline argument to the parser,it allows script to accept
+#parameter 'tracing' with a description following, the value
+#of this paramter is provided during execution as 'false'
+cmd.Parse(sys.argv)
+#Command-line parser is assignning with 'sys.argv', it
+#has command-line argument passed to the scripts.
+#It also has values from parameters with their related variables.
+
+
+
+if nWifi.value > 18:
+    print("nWifi should be 18 or less; otherwise grid layout exceeds the bounding box")
+    sys.exit(1)
+# The underlying restriction of 18 is due to the grid position
+# allocator's configuration; the grid layout will exceed the
+# bounding box if more than 18 nodes are provided.
+
+if verbose.value:
+    ns.core.LogComponentEnable("UdpEchoClientApplication", ns.core.LOG_LEVEL_INFO)
+    ns.core.LogComponentEnable("UdpEchoServerApplication", ns.core.LOG_LEVEL_INFO)
+#If value for verbose is true, then enabling logcomponent,
+#the components are capturing and displaying execution infomration.
+#Method 1 to generate output but with performance compromise.
+    
+
+
+
+
+
+
+
+
+p2pNodes = ns.network.NodeContainer()
+#Utilizing network module from ns-3 to create an empty contrainer
+p2pNodes.Create(2)
+#Adding two nodes for the contrainer
+
+pointToPoint = ns.point_to_point.PointToPointHelper()
+#Create a p2p helper object
+pointToPoint.SetDeviceAttribute("DataRate", ns.core.StringValue("5Mbps"))
+#Set the attribute for p2p device with object p2p helper
+pointToPoint.SetChannelAttribute("Delay", ns.core.StringValue("2ms"))
+#Set the attribute for p2p device with object p2p helper#Set the attribute for p2p device with object p2p helper
+
+
+p2pDevices = pointToPoint.Install(p2pNodes)
+#Connect all the nodes to p2pdevices, the method is 'Install'
+
+
+csmaNodes = ns.network.NodeContainer()
+#Create an empty container for CSMA nodes
+csmaNodes.Add(p2pNodes.Get(1))
+#The inter argument is to retrive the second node from
+#p2pnode container, the outside one is add this one to
+#CSMA node container.
+
+#This is also a representation that this p2p node also
+#in another network.
+
+csmaNodes.Create(nCsma.value)
+#The outside is to create the CSMA node, nCsma.value
+#is the number of node it created, in this case, '3'
+
+csma = ns.csma.CsmaHelper()
+#Create the insatnce of Csmahelper class in ns-3
+#and install carrier sense multiple access network
+csma.SetChannelAttribute("DataRate", ns.core.StringValue("100Mbps"))
+#Set the attribute for CSMA chnael, the string vlaue format is used 
+#from ns-3 module
+csma.SetChannelAttribute("Delay", ns.core.TimeValue(ns.core.NanoSeconds(6560)))
+#Set the attribute for CSMA chnael, the time vlaue format is used 
+#from ns-3 module
+
+csmaDevices = csma.Install(csmaNodes)
+#Connect csma devices to nodes before configure the channel
+#the method is installing them
+
+wifiStaNodes = ns.network.NodeContainer() 
+#Create an empty container for wifi nodes
+
+wifiStaNodes.Create(nWifi.value)
+#Create the number of 'nwifi.value' nodes from wifi container
+
+wifiApNode = p2pNodes.Get(0)
+#Get the first node from p2p node container
+#Define this node as the access point, not functionally
+
+channel = ns.wifi.YansWifiChannelHelper.Default()
+#Create a channel by using defrault Yet Another Network Simulator
+#channel model, this channel servers for communication between wireless nodes
+
+phy = ns.wifi.YansWifiPhyHelper()
+#Create a helper object to configure physical layer of Wifi nodes
+#Still use Yans
+phy.SetChannel(channel.Create())
+#Related to phy from previousline, create the channel with
+#physical layer. Outter line is setting chaneel for wifi nodes
+
+
+mac = ns.wifi.WifiMacHelper()
+#Create a helper object to configure MAC layer of wifi nodes
+ssid = ns.wifi.Ssid("ns-3-ssid")
+#Create a ssid for wifi network, which identifies a wifi network
+
+wifi = ns.wifi.WifiHelper()
+#Create a helper object to set up wifi network
+
+mac.SetType(
+    "ns3::StaWifiMac", "Ssid", ns.wifi.SsidValue(ssid), "ActiveProbing", ns.core.BooleanValue(False)
+)
+#Set the type of MAC layer for station devices as 'ns3::StaWifiMac'
+#Applied SSID for station device from precious definition
+#Disable active probling from station device with ns.core.Boolean
+staDevices = wifi.Install(phy, mac, wifiStaNodes)
+#Connect station device with station wifi nodes, applying precious
+#physical and MAC layer settings, store them in staDevices
+mac.SetType("ns3::ApWifiMac", "Ssid", ns.wifi.SsidValue(ssid))
+#Set the type of MAC layers for access point devices as 'ns3::ApWifiMac'
+#for AP devices
+#Applied SSID for AP devices as same as STA devices
+
+apDevices = wifi.Install(phy, mac, wifiApNode)
+#Connect AP devices to AP wifi nodes, applying same physcial
+#and MAC layer seetings, store them in apDevices
+
+
+mobility = ns.mobility.MobilityHelper()
+#Creare a mobility helper object to conifgure node mobility
+
+mobility.SetPositionAllocator(
+    "ns3::GridPositionAllocator",
+    "MinX",
+    ns.core.DoubleValue(0.0),
+    "MinY",
+    ns.core.DoubleValue(0.0),
+    "DeltaX",
+    ns.core.DoubleValue(5.0),
+    "DeltaY",
+    ns.core.DoubleValue(10.0),
+    "GridWidth",
+    ns.core.UintegerValue(3),
+    "LayoutType",
+    ns.core.StringValue("RowFirst"),
+)
+#Configure a grid-based position allocator for nodes,the
+#parameters are minimum of X and Y coordinates, grid spacing
+#and layout type, it can be tunned later accordingly
+
+
+mobility.SetMobilityModel(
+    "ns3::RandomWalk2dMobilityModel",
+    "Bounds",
+    ns.mobility.RectangleValue(ns.mobility.Rectangle(-50, 50, -50, 50)),
+)
+
+#Configure a 2D random wlak mobel model for nodes, the boundary
+#of this model is a rectangle with 100 wide and long
+mobility.Install(wifiStaNodes)
+#Connect mobility model on station wifi nodes
+
+mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel")
+#Configue a constant position model for access point nodes
+mobility.Install(wifiApNode)
+#Connect constatnt model to ap wifi nodes
+
+stack = ns.internet.InternetStackHelper()
+#Create an internetstack helper object to configure and install
+#internet protocol stacks on nodes
+
+stack.Install(csmaNodes)
+stack.Install(wifiApNode)
+stack.Install(wifiStaNodes)
+#Connect internet protocol stack to all networks including
+#CSMA, station wifi and ap wifi nodes, they shoudl all support
+#standard internet protocols
+
+address = ns.internet.Ipv4AddressHelper()
+#Create an IPv4 address helper object to assit ipv4 address to
+#network interfaces
+address.SetBase(ns.network.Ipv4Address("10.1.1.0"), ns.network.Ipv4Mask("255.255.255.0"))
+#Applied ipv4 address and subnet mask (for p2p)
+p2pInterfaces = address.Assign(p2pDevices)
+#Connect address to p2p2 interface(devices), the method is assign
+
+
+
+address.SetBase(ns.network.Ipv4Address("10.1.2.0"), ns.network.Ipv4Mask("255.255.255.0"))
+#Set the base IPv4 address and subnet mask (for CSMA)
+csmaInterfaces = address.Assign(csmaDevices)
+#Connect address to csma interfaces (devices), the method is assign
+
+address.SetBase(ns.network.Ipv4Address("10.1.3.0"), ns.network.Ipv4Mask("255.255.255.0"))
+#Ser the base IPv4 address and subnet mask(for wifi)
+address.Assign(staDevices)
+#connect address to station wifi interfaces(decvies)
+address.Assign(apDevices)
+##connect address to access point wifi interfaces(decvies)
+
+echoServer = ns.applications.UdpEchoServerHelper(9)
+#Create UDP echo server helper object to listen on port 9
+serverApps = echoServer.Install(csmaNodes.Get(nCsma.value))
+#Connect a UDP echo server application to CSMA node with index
+# vlaue=predefined 3
+serverApps.Start(ns.core.Seconds(1.0))
+#Time to start server application at 1.0s
+serverApps.Stop(ns.core.Seconds(10.0))
+#Time to stop server application at 10.0s
+
+echoClient = ns.applications.UdpEchoClientHelper(
+    csmaInterfaces.GetAddress(nCsma.value).ConvertTo(), 9
+)
+#Create a UDP echo client helper object, sending packets to
+#IPv4 address from CSMA interfaces at index 'ncsma.value' and on port 9
+
+echoClient.SetAttribute("MaxPackets", ns.core.UintegerValue(1))
+#Configure the maximum number of packets that UDP echo client
+#will send to the servers, it is 1 here
+echoClient.SetAttribute("Interval", ns.core.TimeValue(ns.core.Seconds(1.0)))
+#Configure time interval between two packets, it is 1.0s
+echoClient.SetAttribute("PacketSize", ns.core.UintegerValue(1024))
+#Configure every packet size as 1024 bytes
+clientApps = echoClient.Install(wifiStaNodes.Get(nWifi.value - 1))
+#Connect UDP echo client application to wifi node with index
+#nwifi.value-1 since it started from 0
+clientApps.Start(ns.core.Seconds(2.0))
+#Time to start client application at 2.0s
+clientApps.Stop(ns.core.Seconds(10.0))
+#Time to stop client application at 10.0s
+
+ns.internet.Ipv4GlobalRoutingHelper.PopulateRoutingTables()
+#This is important bcause this program is building a real network
+#It calls population routing table method of ipv4 global routing helper
+#This line is serving for populating global ipv4 routing tables, which
+#is important for proper routing in ns-3
+ns.core.Simulator.Stop(ns.core.Seconds(10.0))
+#Simulation steops at 10.0s
+
+if tracing.value:
+#This section only execute if tracing is enabled
+    phy.SetPcapDataLinkType(phy.DLT_IEEE802_11_RADIO)
+    #Set packet capture data link type for wifi physical layer
+    #to IEEE 802.11 in standard format
+    pointToPoint.EnablePcapAll("thirdpy")
+    #It enable tracing for p2p devices, 'thirdis output file name
+
+    phy.EnablePcap("thirdpy", apDevices.Get(0))
+    #It enable Pcap tracing for wifi physical layer of ap devices
+
+    csma.EnablePcap("thirdpy", csmaDevices.Get(0), True)
+    #It enables for CSMA devices tracing
+
+   
+
+  
+
+
+
+ns.core.Simulator.Run()
+#Advancing simulation clock and executing schduled events
+ns.core.Simulator.Destroy()
+#Clean up and destoy the simulatin environment, and releasing allocated resources.
+
+
+
