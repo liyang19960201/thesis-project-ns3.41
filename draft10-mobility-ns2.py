@@ -2,76 +2,9 @@ from ns import ns #The NS package from python
 
 from matplotlib import pyplot as plt
 import sys
-import csv
+from csv import DictReader
 import pandas as pd
 import re
-
-#The system module in python, in this case, it will sever
-#for the cmd section
-
-from ctypes import c_bool, c_int
-#The certain types from ctypes moduel in python, which
-#is providing c++ compatible data types, in this case.
-#int and bool datatypes
-
-nCsma = c_int(3)
-#The number of nodes in CSMA subnet, c_int is the integer
-#from ctype
-verbose = c_bool(True)
-#The variable to enable/disable log component, c_boolean is the integer
-#from ctype
-nWifi = c_int(3)
-#The number of nodes in wifi subnet, c_int is the integer
-#from ctype
-tracing = c_bool(True)
-#The variable to enable/disable tracing, c_int is the integer
-#from ctype
-
-
-cmd = ns.CommandLine(__file__)
-#A command line parser(cmd) using comandLine class from ns-3
-#__file__ is a variable represents name of current scripts in python
-#CommandLine is an object with scripts'name
-cmd.AddValue("nCsma", "Number of extra CSMA nodes/devices", nCsma)
-#A commandline argument to the parser,it allows script to accept
-#parameter 'nCsma' with a description following, the value
-#of this paramter is provided during execution as '3'
-cmd.AddValue("nWifi", "Number of wifi STA devices", nWifi)
-#A commandline argument to the parser,it allows script to accept
-#parameter 'nwifi' with a description following, the value
-#of this paramter is provided during execution as '3'
-cmd.AddValue("verbose", "Tell echo applications to log if true", verbose)
-#A commandline argument to the parser,it allows script to accept
-#parameter 'verbose' with a description following, the value
-#of this paramter is provided during execution as 'true'
-cmd.AddValue("tracing", "Enable pcap tracing", tracing)
-#A commandline argument to the parser,it allows script to accept
-#parameter 'tracing' with a description following, the value
-#of this paramter is provided during execution as 'false'
-cmd.Parse(sys.argv)
-#Command-line parser is assignning with 'sys.argv', it
-#has command-line argument passed to the scripts.
-#It also has values from parameters with their related variables.
-
-
-
-if nWifi.value > 18:
-    print("nWifi should be 18 or less; otherwise grid layout exceeds the bounding box")
-    sys.exit(1)
-# The underlying restriction of 18 is due to the grid position
-# allocator's configuration; the grid layout will exceed the
-# bounding box if more than 18 nodes are provided.
-
-if verbose.value:
-    ns.core.LogComponentEnable("BulkSendApplication", ns.core.LOG_LEVEL_FUNCTION)
-    ns.core.LogComponentEnable("PacketSink", ns.core.LOG_LEVEL_FUNCTION)
-    
-
-#If value for verbose is true, then enabling logcomponent,
-#the components are capturing and displaying execution infomration.
-#Method 1 to generate output but with performance compromise.
-    
-
 
 
 wifiStaNodes = ns.network.NodeContainer() 
@@ -162,9 +95,9 @@ def getNodeCoordinates(nodeContainer : ns.NodeContainer) -> None:
 
 #######csv section
 # Read CSV file with node positions
-filename="node10line.csv" 
+filename="node-test.csv" 
 
-nodeposition=pd.read_csv(filename)
+# nodeposition=pd.read_csv(filename)
 
 # print(nodeposition)
 
@@ -176,12 +109,40 @@ def loadposition(wifiStaNodes :ns.NodeContainer):
 
 
     with open(filename, 'r') as file:
-        reader = pd.read_csv(file)
+        reader = DictReader(file)
+        print(reader)
+       
+
+        mobilityHelper = ns.MobilityHelper()
+        mobilityHelper.SetMobilityModel ("ns3::WaypointMobilityModel")
+        # mobilityHelper.SetPositionAllocator ("ns3::randomBoxPositions")
+        mobilityHelper.Install (wifiStaNodes)
+
+
+        for entry in reader:
+
+            print((int(entry["Node ID"]))-1)
+            node = wifiStaNodes.Get((int(entry["Node ID"]))-1)
+            print(node)
+            mobility = node.GetObject[ns.WaypointMobilityModel]().__deref__()
+            
+            # time = ns.Seconds(abs(float(entry["Timestamp"])))
+            
+            print(abs(float(entry["Timestamp"])))
+            nextPos = ns.Vector(float(entry["x"]), float(entry["y"]), float(entry["z"]))
+            print(nextPos)
+            # wpt = ns.Waypoint (time, nextPos)
+            # print(wpt)
+
+            # mobility.AddWaypoint(wpt)
+            currPos = nextPos
+
+            print(node,currPos)
         
-        ids=reader['Track'].tolist()
-        vc=reader['Vehicle'].tolist()
-        ds=reader['Description'].tolist()
-        ts=reader['Translation'].apply(eval).tolist()
+        # ids=reader['Track'].tolist()
+        # vc=reader['Vehicle'].tolist()
+        # ds=reader['Description'].tolist()
+        # ts=reader['Translation'].apply(eval).tolist()
         # tsmp=ns.core.Simulator.Now()
 
         # print(ids)
@@ -193,33 +154,33 @@ def loadposition(wifiStaNodes :ns.NodeContainer):
     # print(len(reader))
 
       
-    for index in range(len(reader)):
+    # for index in range(len(reader)):
         
-            track=ids[index]
-            vehicle=ds[index]
-            x,y=ts[index][0],ts[index][1]
-            timestamp=ns.core.Simulator.Now()
-            nodeposition = (x, y)
-            linePositions = ns.CreateObject("ListPositionAllocator")
-            linePositions.__deref__().Add (ns.Vector(x, y, 0))
+    #         track=ids[index]
+    #         vehicle=ds[index]
+    #         x,y=ts[index][0],ts[index][1]
+    #         timestamp=ns.core.Simulator.Now()
+    #         nodeposition = (x, y)
+    #         linePositions = ns.CreateObject("ListPositionAllocator")
+    #         linePositions.__deref__().Add (ns.Vector(x, y, 0))
             
            
            
            
-            mobilityHelper = ns.MobilityHelper()
+    #         mobilityHelper = ns.MobilityHelper()
             
 
-            mobilityHelper.SetPositionAllocator (linePositions)
-            mobilityHelper.Install(wifiStaNodes)
-            mobility = wifiStaNodes.Get(1).GetObject[ns.MobilityModel]().__deref__()
-            position = mobility.GetPosition()
-            coordinate = ((position.x), (position.y))
-            coordinatesHistoric.append((vehicle, nodeposition))
-            print(coordinate,end="\n") 
+    #         mobilityHelper.SetPositionAllocator (linePositions)
+    #         mobilityHelper.Install(wifiStaNodes)
+    #         mobility = wifiStaNodes.Get(1).GetObject[ns.MobilityModel]().__deref__()
+    #         position = mobility.GetPosition()
+    #         coordinate = ((position.x), (position.y))
+    #         coordinatesHistoric.append((vehicle, nodeposition))
+    #         print(coordinate,end="\n") 
 
-    print(ns.Simulator.Now().GetSeconds(),end="\n")
-    event = ns.pythonMakeEvent(loadposition,wifiStaNodes)
-    ns.Simulator.Schedule(ns.Seconds(0.5),event)
+    # print(ns.Simulator.Now().GetSeconds(),end="\n")
+    # event = ns.pythonMakeEvent(loadposition,wifiStaNodes)
+    # ns.Simulator.Schedule(ns.Seconds(0.5),event)
     # print(coordinatesHistoric)
           
         
@@ -306,6 +267,7 @@ mobility.Install(wifiApNodes)
 
 loadposition(wifiStaNodes)
 
+# animateSimulation()
 # getNodeCoordinates(wifiStaNodes)
 
 
@@ -318,7 +280,6 @@ ns.core.Simulator.Stop(ns.core.Seconds(10.0))
 ns.core.Simulator.Run()
 
 
-animateSimulation()
 #Advancing simulation clock and executing schduled events
 ns.core.Simulator.Destroy()
 

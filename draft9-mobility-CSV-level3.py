@@ -113,22 +113,6 @@ mobility.SetPositionAllocator(
 
 
 
-##mobility experiment
-
-
-# # Define the coordinates for the movement pattern
-# coordinates = [(0.0, 0.0, 0.0), (10.0, 10.0, 0.0), (20.0, 0.0, 0.0), (30.0, 10.0, 0.0)]
-
-# # Set up position allocator
-# positionAllocator = ns.mobility.ListPositionAllocator()
-# for coord in coordinates:
-#     positionAllocator.Add(ns.core.Vector(coord[0], coord[1], coord[2]))
-
-# # Set mobility model to use the position allocator
-# mobility.SetPositionAllocator(positionAllocator)
-
-
-
    
 
 
